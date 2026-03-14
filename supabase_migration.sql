@@ -70,3 +70,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+
+ALTER TABLE public.user_favorites 
+ADD COLUMN IF NOT EXISTS entry_price DECIMAL,
+ADD COLUMN IF NOT EXISTS stop_loss DECIMAL,
+ADD COLUMN IF NOT EXISTS target_price DECIMAL,
+ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'watching'; 

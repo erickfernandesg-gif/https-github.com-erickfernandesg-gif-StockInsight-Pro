@@ -1,148 +1,151 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from "@google/genai";
 import { 
-  calculateEMA, 
   calculateSMA, 
-  calculateRSI, 
-  calculateMACD, 
+  calculateEMA, 
+  calculateRSI,
+  calculateMACD,
   calculateBollingerBands,
-  type OHLC 
+  calculateATR
 } from '@/lib/indicators';
 
-const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY! });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function POST(req: Request) {
   try {
     const { ticker } = await req.json();
-
-    if (!ticker) {
-      return NextResponse.json({ error: 'Ticker is required' }, { status: 400 });
-    }
-
-    // 1. Fetch historical data (Simulated or Real Brapi)
-    let historicalData: OHLC[] = [];
     const brapiToken = process.env.BRAPI_TOKEN;
 
-    if (brapiToken) {
-      try {
-        const res = await fetch(`https://brapi.dev/api/quote/${ticker}?range=2mo&interval=1d&token=${brapiToken}`);
-        const data = await res.json();
-        const results = data.results[0];
-        historicalData = results.historicalData.map((d: any) => ({
-          date: d.date,
-          open: d.open,
-          high: d.high,
-          low: d.low,
-          close: d.close,
-          volume: d.volume
-        }));
-      } catch (e) {
-        console.error('Brapi fetch failed, falling back to simulation', e);
-        historicalData = generateSimulatedData(60);
-      }
-    } else {
-      historicalData = generateSimulatedData(60);
+    if (!ticker) return NextResponse.json({ error: 'Ticker required' }, { status: 400 });
+    if (!brapiToken) return NextResponse.json({ error: 'Server config error' }, { status: 500 });
+
+    // 1. Fetch Historical Data (3 meses para não bloquear na Brapi Gratuita)
+    const formattedTicker = ticker.trim().toUpperCase();
+    const cleanToken = brapiToken.trim();
+    
+    const url = new URL(`https://brapi.dev/api/quote/${formattedTicker}`);
+    url.searchParams.append('range', '3mo'); 
+    url.searchParams.append('interval', '1d');
+    url.searchParams.append('token', cleanToken);
+    
+    const res = await fetch(url.toString());
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`❌ Erro da Brapi [Status ${res.status}]:`, errorText);
+      throw new Error(`Failed to fetch Brapi data: ${res.status}`);
+    }
+    
+    const data = await res.json();
+    const results = data.results[0];
+    const historicalData = results?.historicalDataPrice || results?.historicalData;
+    
+    if (!historicalData || historicalData.length === 0) {
+      throw new Error('No historical data found for this ticker');
     }
 
-    const closes = historicalData.map(d => d.close);
-
-    // 2. Calculate Indicators
+    // Mapeamento completo OHLCV (Open, High, Low, Close, Volume) para o ATR
+    const ohlcData = historicalData.map((d: any) => ({
+      date: d.date, open: d.open, high: d.high, low: d.low, close: d.close, volume: d.volume
+    }));
+    const closes = ohlcData.map((d: any) => d.close);
+    const volumes = ohlcData.map((d: any) => d.volume);
+    
+    // 2. Cálculos Institucionais (Matemática Avançada)
+    const lastIdx = closes.length - 1;
     const ema9 = calculateEMA(closes, 9);
     const ema21 = calculateEMA(closes, 21);
-    const sma200 = calculateSMA(closes, 200); // Note: 60 days won't give 200 SMA, but we'll use what we have
+    const sma50 = calculateSMA(closes, 50); // Filtro de Tendência
     const rsi = calculateRSI(closes, 14);
-    const macd = calculateMACD(closes);
-    const bb = calculateBollingerBands(closes, 20, 2);
+    const macdData = calculateMACD(closes);
+    const bbData = calculateBollingerBands(closes);
+    const atrData = calculateATR(ohlcData, 14); // Volatilidade para Stop Loss
+    const volSma20 = calculateSMA(volumes, 20); // Média de volume para evitar armadilhas
 
-    const lastIdx = closes.length - 1;
     const indicators = {
-      ticker,
       currentPrice: closes[lastIdx],
       ema9: ema9[lastIdx],
       ema21: ema21[lastIdx],
-      sma200: sma200[lastIdx] || 'N/A (Need more data)',
+      sma50: sma50[lastIdx] || null, 
       rsi: rsi[lastIdx],
-      macd: {
-        line: macd.macd[lastIdx],
-        signal: macd.signal[lastIdx],
-        histogram: macd.histogram[lastIdx]
-      },
-      bollinger: {
-        upper: bb.upper[lastIdx],
-        middle: bb.middle[lastIdx],
-        lower: bb.lower[lastIdx]
-      }
+      macdHist: macdData.histogram[lastIdx] || 0,
+      bbUpper: bbData.upper[lastIdx] || null,
+      bbLower: bbData.lower[lastIdx] || null,
+      atr: atrData[lastIdx] || 0,
+      volToday: volumes[lastIdx] || 0,
+      volAvg: volSma20[lastIdx] || 1 // Previne divisão por zero
     };
 
-    // 3. Gemini Analysis
-    const prompt = `Analise os seguintes indicadores técnicos para o ativo ${ticker}:
-    Preço Atual: ${indicators.currentPrice}
-    EMA 9: ${indicators.ema9}
-    EMA 21: ${indicators.ema21}
-    SMA 200: ${indicators.sma200}
-    RSI (14): ${indicators.rsi}
-    MACD: Line ${indicators.macd.line}, Signal ${indicators.macd.signal}, Histogram ${indicators.macd.histogram}
-    Bandas de Bollinger: Superior ${indicators.bollinger.upper}, Média ${indicators.bollinger.middle}, Inferior ${indicators.bollinger.lower}`;
+    const volRatio = (indicators.volToday / indicators.volAvg).toFixed(2);
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+    // 3. Prompt Cérebro (Dados enviados para o Gemini)
+    const prompt = `Analise o ativo ${formattedTicker} para Swing Trade.
+    Dados Técnicos de Hoje:
+    - Preço Atual: R$ ${indicators.currentPrice?.toFixed(2)}
+    - SMA 50 (Tendência Primária): R$ ${indicators.sma50 ? indicators.sma50.toFixed(2) : 'N/A'}
+    - EMA 9 / EMA 21: R$ ${indicators.ema9?.toFixed(2)} / R$ ${indicators.ema21?.toFixed(2)}
+    - RSI (14): ${indicators.rsi?.toFixed(2)}
+    - MACD Histograma: ${indicators.macdHist?.toFixed(4)}
+    - Bandas de Bollinger (Upper/Lower): R$ ${indicators.bbUpper?.toFixed(2)} / R$ ${indicators.bbLower?.toFixed(2)}
+    - ATR (14 dias): R$ ${indicators.atr?.toFixed(2)}
+    - Força do Volume (Hoje vs Média 20d): ${volRatio}x`;
+
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
-        systemInstruction: "Você é um analista CNPI de Swing Trade. Analise os indicadores técnicos fornecidos. Se o preço estiver acima da SMA 200 e a EMA 9 cruzar a EMA 21 para cima, busque compra. Considere RSI < 30 como exaustão de venda. Retorne um JSON com: decisão (Compra/Venda/Neutro), Preço de Entrada, Stop Loss (baseado em suporte), Take Profit (alvo 2:1) e uma justificativa técnica curta.",
+        systemInstruction: `Você é um Robô Quantitativo Institucional de Swing Trade. Seu objetivo é máxima assertividade e proteção de capital. Responda APENAS com um JSON válido.
+            REGRAS DE OURO (Siga rigorosamente):
+            1. TENDÊNCIA E VOLUME: Só recomende "Compra" ou "Compra Forte" se o Preço Atual for MAIOR que a SMA 50 E o 'Força do Volume' for >= 0.8x.
+            2. MOMENTUM (Gatilho): O MACD Histograma deve estar positivo (ou subindo). O RSI deve estar entre 40 e 70 (nunca compre acima de 70).
+            3. LIMITES (Bollinger): REJEITE a compra (recomendação "Neutro" ou "Venda") se o Preço Atual estiver muito perto ou acima da Banda Superior (bbUpper).
+            4. RISCO MILIMÉTRICO (ATR): O stop_loss DEVE ser posicionado em EXATAMENTE (Preço Atual - (2 * ATR)). Arredonde para 2 casas decimais.
+            5. ALVO (Take Profit): Risco/Retorno mínimo de 2:1. O take_profit DEVE ser posicionado em (Preço Atual + (4 * ATR)).
+            6. JUSTIFICATIVA: Escreva um parágrafo técnico, em Português (PT-BR), justificando a operação com base no cruzamento das médias, na força do MACD/Volume, e explicando onde o Stop foi posicionado com base no ATR.`,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            decisao: { type: Type.STRING },
-            precoEntrada: { type: Type.NUMBER },
-            stopLoss: { type: Type.NUMBER },
-            takeProfit: { type: Type.NUMBER },
-            justificativa: { type: Type.STRING }
+            recommendation: { type: Type.STRING, enum: ["Compra Forte", "Compra", "Neutro", "Venda"] },
+            entry_price: { type: Type.NUMBER },
+            stop_loss: { type: Type.NUMBER },
+            take_profit: { type: Type.NUMBER },
+            justification: { type: Type.STRING }
           },
-          required: ["decisao", "precoEntrada", "stopLoss", "takeProfit", "justificativa"]
+          required: ["recommendation", "entry_price", "stop_loss", "take_profit", "justification"]
         }
       }
     });
 
-    const analysis = JSON.parse(response.text || '{}');
+    const responseText = result.text;
+    
+    if (!responseText) {
+      throw new Error("Failed to generate analysis: AI response was empty.");
+    }
+    
+    const startIndex = responseText.indexOf('{');
+    const endIndex = responseText.lastIndexOf('}');
+    
+    if (startIndex === -1 || endIndex === -1) {
+      throw new Error("Failed to parse AI response: No JSON object found in the text.");
+    }
+    
+    const cleanJson = responseText.substring(startIndex, endIndex + 1);
+    const analysis = JSON.parse(cleanJson);
 
     return NextResponse.json({
-      ticker,
-      indicators,
+      ticker: formattedTicker,
+      indicators: {
+        rsi: indicators.rsi,
+        sma50: indicators.sma50,
+        macd: indicators.macdHist,
+        atr: indicators.atr
+      },
       analysis
     });
 
   } catch (error: any) {
-    console.error('Analysis API Error:', error);
+    console.error("Analyze Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
-
-function generateSimulatedData(days: number): OHLC[] {
-  const data: OHLC[] = [];
-  let price = 30 + Math.random() * 20;
-  const now = new Date();
-
-  for (let i = 0; i < days; i++) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - (days - i));
-    
-    const change = (Math.random() - 0.5) * 2;
-    const open = price;
-    const close = price + change;
-    const high = Math.max(open, close) + Math.random();
-    const low = Math.min(open, close) - Math.random();
-    
-    data.push({
-      date: date.toISOString().split('T')[0],
-      open,
-      high,
-      low,
-      close,
-      volume: 1000000 + Math.random() * 5000000
-    });
-    
-    price = close;
-  }
-  return data;
 }

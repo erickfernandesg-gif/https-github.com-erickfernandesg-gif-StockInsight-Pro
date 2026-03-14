@@ -4,13 +4,17 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { motion } from 'motion/react';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Star, Loader2, Search } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Star, Loader2, Search, Target, ShieldAlert, TrendingUp } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface Favorite {
   id: string;
   ticker: string;
   added_at: string;
+  entry_price?: number;
+  stop_loss?: number;
+  target_price?: number;
+  status?: string;
 }
 
 interface AssetData {
@@ -113,6 +117,53 @@ export default function WatchlistPage() {
     }
   };
 
+  // Calculadora da Régua de Trade
+// Calculadora da Régua de Trade (CORRIGIDA)
+  const getTradeStatus = (currentPrice: number, stop: number, target: number, entry: number) => {
+    if (target === stop) return { status: 'ERROR', progress: 0, entryPos: 0, isProfit: false, text: 'Config Inválida' };
+
+    const isLong = target > stop; 
+    
+    // Calcula as distâncias e porcentagens primeiro
+    const totalRange = Math.abs(target - stop);
+    const currentDist = isLong ? (currentPrice - stop) : (stop - currentPrice);
+    const entryDist = isLong ? (entry - stop) : (stop - entry);
+
+    // Clamps (garante que a bolinha não vaze para fora da barra, ficando entre 0 e 100)
+    const currentProgress = Math.min(Math.max((currentDist / totalRange) * 100, 0), 100);
+    const entryPos = Math.min(Math.max((entryDist / totalRange) * 100, 0), 100);
+    const isProfit = isLong ? currentPrice > entry : currentPrice < entry;
+
+    // Verifica Status
+    const isStopped = isLong ? currentPrice <= stop : currentPrice >= stop;
+    const isTargetHit = isLong ? currentPrice >= target : currentPrice <= target;
+
+    // Retorna SEMPRE a estrutura completa
+    if (isStopped) {
+      return { status: 'STOPPED', progress: 0, entryPos, isProfit: false, text: 'STOP LOSS ACIONADO' };
+    }
+    if (isTargetHit) {
+      return { status: 'PROFIT', progress: 100, entryPos, isProfit: true, text: 'ALVO ATINGIDO' };
+    }
+
+    return {
+      status: 'RUNNING',
+      progress: currentProgress,
+      entryPos,
+      isProfit
+    };
+  };
+
+  const getRowStyle = (statusResult: any) => {
+    if (statusResult.status === 'STOPPED') {
+      return 'bg-red-500/10 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]';
+    }
+    if (statusResult.status === 'PROFIT') {
+      return 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]';
+    }
+    return 'bg-surface-dark border-border-dark hover:border-primary/50';
+  };
+
   return (
     <div className="flex min-h-screen bg-background-dark">
       <Sidebar />
@@ -193,85 +244,126 @@ export default function WatchlistPage() {
             </div>
           </div>
 
-          {/* Table */}
+          {/* Cards Grid (Substituindo Tabela) */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-surface-dark rounded-2xl border border-border-dark shadow-sm overflow-hidden"
           >
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-border-dark bg-background-dark/30">
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Asset</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Price</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">24h Change</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Added At</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-dark">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {isLoading ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="col-span-full py-12 text-center">
                         <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
                         <p className="text-xs text-slate-500 mt-2 font-bold uppercase tracking-widest">Syncing Watchlist...</p>
-                      </td>
-                    </tr>
+                    </div>
                   ) : favorites.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="col-span-full py-12 text-center bg-surface-dark rounded-2xl border border-dashed border-slate-700">
                         <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Your watchlist is empty.</p>
                         <button onClick={() => setIsAdding(true)} className="text-primary text-xs font-black mt-2 hover:underline">Add your first asset</button>
-                      </td>
-                    </tr>
+                    </div>
                   ) : favorites.map((fav) => {
                     const data = assetsData[fav.ticker];
+                    
+                    // Trade Logic
+                    const hasTradeSetup = fav.entry_price && fav.stop_loss && fav.target_price && data;
+                    let tradeStatus = null;
+                    
+                    if (hasTradeSetup) {
+                      tradeStatus = getTradeStatus(data.price, fav.stop_loss!, fav.target_price!, fav.entry_price!);
+                    }
+
+                    const cardStyle = hasTradeSetup ? getRowStyle(tradeStatus) : 'bg-surface-dark border-border-dark hover:border-primary/50';
+
                     return (
-                      <tr key={fav.id} className="hover:bg-primary/5 transition-colors group cursor-pointer">
-                        <td className="px-6 py-4">
+                      <div key={fav.id} className={`p-6 rounded-2xl border transition-all duration-300 group relative overflow-hidden ${cardStyle}`}>
+                        {/* Header do Card */}
+                        <div className="flex justify-between items-start mb-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-background-dark flex items-center justify-center font-black text-[10px] text-slate-400 group-hover:text-primary transition-colors">
+                            <div className="w-10 h-10 rounded-xl bg-background-dark/50 flex items-center justify-center font-black text-xs text-slate-400 group-hover:text-primary group-hover:bg-primary/10 transition-colors">
                               {fav.ticker[0]}
                             </div>
                             <div>
-                              <div className="font-black text-white group-hover:text-primary transition-colors">{fav.ticker}</div>
-                              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">{data?.name || 'Loading...'}</div>
+                              <h3 className="font-black text-lg text-white leading-none">{fav.ticker}</h3>
+                              <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">{data?.name?.slice(0, 20) || 'Loading...'}</p>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 font-mono font-bold text-slate-200">
-                          {data ? `$${data.price.toFixed(2)}` : '-'}
-                        </td>
-                        <td className="px-6 py-4">
-                          {data ? (
-                            <span className={`font-bold text-sm flex items-center gap-0.5 ${data.change >= 0 ? 'text-primary' : 'text-rose-500'}`}>
-                              {data.change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                              {data.change.toFixed(2)}%
-                            </span>
-                          ) : '-'}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-xs text-slate-400 font-medium">
-                            {new Date(fav.added_at).toLocaleDateString()}
+                          
+                          <div className="text-right">
+                             <p className="text-lg font-mono font-bold text-white">
+                               {data ? `R$ ${data.price.toFixed(2)}` : '---'}
+                             </p>
+                             {data && (
+                                <div className={`flex items-center justify-end gap-1 text-xs font-bold ${data.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {data.change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                    {data.change.toFixed(2)}%
+                                </div>
+                             )}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
+                        </div>
+
+                        {/* A Régua (Trade Monitor) */}
+                        <div className="mb-4">
+                          {hasTradeSetup && tradeStatus ? (
+                            <div className="w-full">
+                              {/* Status Alert Text */}
+                              {(tradeStatus.status !== 'RUNNING') && (
+                                <div className={`mb-2 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 py-1 rounded-md ${
+                                    tradeStatus.status === 'STOPPED' ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-emerald-500/20 text-emerald-400'
+                                }`}>
+                                  {tradeStatus.status === 'STOPPED' ? <ShieldAlert className="w-4 h-4"/> : <Target className="w-4 h-4"/>}
+                                  {tradeStatus.text}
+                                </div>
+                              )}
+
+                              {/* Visual Ruler */}
+                              <div className="relative h-8 w-full mt-2">
+                                  {/* Base Track */}
+                                  <div className="absolute top-1/2 -translate-y-1/2 w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-white/5">
+                                    {/* Stop Area (Left of Entry) - Visual Hint */}
+                                    <div className="absolute left-0 top-0 h-full bg-rose-500/20" style={{ width: `${tradeStatus.entryPos}%` }}></div>
+                                    {/* Profit Area (Right of Entry) - Visual Hint */}
+                                    <div className="absolute right-0 top-0 h-full bg-emerald-500/20" style={{ width: `${100 - tradeStatus.entryPos}%` }}></div>
+                                  </div>
+
+                                  {/* Entry Marker (Vertical Line) */}
+                                  <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-slate-400/50" style={{ left: `${tradeStatus.entryPos}%` }}></div>
+                                  
+                                  {/* Current Price Marker (Puck) */}
+                                  <div 
+                                    className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-surface-dark shadow-[0_0_10px_rgba(0,0,0,0.5)] z-10 transition-all duration-700 ease-out flex items-center justify-center ${
+                                        tradeStatus.isProfit ? 'bg-emerald-500' : 'bg-rose-500'
+                                    }`}
+                                    style={{ left: `${tradeStatus.progress}%` }}
+                                  >
+                                    <div className="w-1 h-1 bg-white rounded-full"></div>
+                                  </div>
+                                  
+                                  {/* Labels */}
+                                  <div className="flex justify-between mt-5 text-[9px] font-bold text-slate-500 uppercase font-mono">
+                                    <span className="text-rose-400">STOP: {fav.stop_loss}</span>
+                                    <span className="text-emerald-400">ALVO: {fav.target_price}</span>
+                                  </div>
+                              </div>
+                            </div>
+                          ) : (
+                             <div className="h-12 flex items-center justify-center bg-background-dark/30 rounded-lg border border-dashed border-slate-800">
+                                <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">Sem Setup Definido</span>
+                             </div>
+                          )}
+                        </div>
+
+                        {/* Footer / Actions */}
+                        <div className="flex items-center justify-between pt-4 border-t border-border-dark/50">
+                           <span className="text-[10px] text-slate-600 font-medium">Add: {new Date(fav.added_at).toLocaleDateString()}</span>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleRemoveAsset(fav.id); }}
-                            className="text-slate-500 hover:text-rose-500 transition-colors p-2 rounded-lg hover:bg-rose-500/10"
+                            className="text-slate-600 hover:text-rose-400 transition-colors p-2 rounded-lg hover:bg-rose-500/10"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-            <div className="px-6 py-4 bg-background-dark/30 border-t border-border-dark flex items-center justify-between">
-              <p className="text-xs text-slate-500 font-medium">Showing {favorites.length} favorited assets</p>
             </div>
           </motion.div>
         </div>

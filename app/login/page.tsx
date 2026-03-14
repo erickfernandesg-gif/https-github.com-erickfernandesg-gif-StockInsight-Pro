@@ -22,7 +22,7 @@ export default function LoginPage() {
   const testConnection = async () => {
     setIsCheckingConnection(true);
     try {
-      const { data, error } = await supabase.from('profiles').select('count').limit(1);
+      const { data, error } = await supabase.from('profiles').select('id').limit(1);
       if (error) {
         if (error.message.includes('FetchError') || error.message.includes('Failed to fetch')) {
           setError('Cannot connect to Supabase. Check if your Project URL is correct and accessible.');
@@ -54,7 +54,7 @@ export default function LoginPage() {
     try {
       if (isSignUp) {
         if (!fullName) throw new Error('Full name is required for sign up');
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -64,7 +64,15 @@ export default function LoginPage() {
           }
         });
         if (error) throw error;
-        alert('Check your email for the confirmation link!');
+
+        if (data.session) {
+          // Se o "Confirm Email" estiver desligado no Supabase, entra direto
+          window.location.href = '/dashboard';
+        } else {
+          // Se precisar confirmar email
+          alert('Check your email for the confirmation link!');
+          setIsSignUp(false); // Volta para a tela de login
+        }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,

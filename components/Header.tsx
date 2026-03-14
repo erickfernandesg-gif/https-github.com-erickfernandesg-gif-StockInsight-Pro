@@ -4,9 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { Search, Bell, User } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation'; // <-- 1. Import do roteador adicionado
 
 export default function Header() {
   const [profile, setProfile] = useState<{ full_name: string | null; role: string | null } | null>(null);
+  const [searchQuery, setSearchQuery] = useState(''); // <-- 2. Estado para guardar o que você digita
+  const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
@@ -14,7 +17,6 @@ export default function Header() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          // Retry logic or just handle null gracefully
           const { data, error } = await supabase
             .from('profiles')
             .select('full_name, role')
@@ -24,7 +26,6 @@ export default function Header() {
           if (!error && data) {
             setProfile(data);
           } else {
-            // Fallback if profile doesn't exist yet
             setProfile({ full_name: user.user_metadata?.full_name || 'User', role: 'user' });
           }
         }
@@ -35,17 +36,30 @@ export default function Header() {
     fetchProfile();
   }, [supabase]);
 
+  // <-- 3. Função que intercepta o "Enter" e faz a mágica de buscar a ação
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      const ticker = searchQuery.trim().toUpperCase();
+      router.push(`/analysis/${ticker}`);
+      setSearchQuery(''); // Opcional: limpa a barra depois de buscar
+    }
+  };
+
   return (
     <header className="h-16 border-b border-border-dark flex items-center justify-between px-8 bg-background-dark/50 backdrop-blur-md sticky top-0 z-20">
       <div className="w-full max-w-xl">
-        <div className="relative group">
+        {/* <-- 4. Trocamos a <div> em volta do input por um <form> */}
+        <form onSubmit={handleSearch} className="relative group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-primary transition-colors" />
           <input 
             type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search ticker (e.g., PETR4, VALE3, IBOV)"
-            className="w-full bg-surface-dark border-none rounded-xl py-2 pl-10 pr-4 focus:ring-2 focus:ring-primary/50 text-sm text-white placeholder:text-slate-500 transition-all"
+            className="w-full bg-surface-dark border-none rounded-xl py-2 pl-10 pr-4 focus:ring-2 focus:ring-primary/50 text-sm text-white placeholder:text-slate-500 transition-all uppercase"
           />
-        </div>
+        </form>
       </div>
 
       <div className="flex items-center gap-4">

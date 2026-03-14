@@ -56,25 +56,24 @@ export default function AssetTable() {
     <div className="bg-surface-dark rounded-2xl border border-border-dark shadow-sm overflow-hidden">
       <div className="p-6 border-b border-border-dark flex items-center justify-between">
         <h2 className="text-lg font-bold text-white">B3 Top Assets</h2>
-        <button className="text-xs font-bold text-primary hover:underline uppercase tracking-wider">View All Assets</button>
+        <button className="text-xs font-bold text-primary hover:underline uppercase tracking-wider">View All</button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead className="bg-background-dark/50 text-[10px] text-slate-500 uppercase font-bold tracking-widest">
             <tr>
               <th className="px-6 py-4">Ticker</th>
-              <th className="px-6 py-4">Price</th>
-              <th className="px-6 py-4">Change %</th>
-              <th className="px-6 py-4">Market Cap</th>
-              <th className="px-6 py-4">Volume</th>
-              <th className="px-6 py-4 text-right">Trend (24h)</th>
+              <th className="px-6 py-4">Preço</th>
+              <th className="px-6 py-4">Variação %</th>
+              <th className="px-6 py-4">Vol. Financeiro</th>
+              <th className="px-6 py-4 text-right">Trend</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border-dark">
             {assets.map((asset) => (
               <tr 
                 key={asset.ticker} 
-                onClick={() => router.push(`/analysis/${asset.ticker.toLowerCase()}`)}
+                onClick={() => router.push(`/analysis/${asset.ticker}`)}
                 className="hover:bg-primary/5 transition-colors cursor-pointer group"
               >
                 <td className="px-6 py-4">
@@ -98,10 +97,7 @@ export default function AssetTable() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-slate-400 font-mono">
-                  {typeof asset.marketCap === 'number' ? `R$ ${(asset.marketCap / 1e9).toFixed(1)}B` : asset.marketCap}
-                </td>
-                <td className="px-6 py-4 text-sm text-slate-400 font-mono">
-                  {(asset.volume / 1e6).toFixed(1)}M
+                  {(asset.volume / 1000000).toFixed(1)}M
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex justify-end">
