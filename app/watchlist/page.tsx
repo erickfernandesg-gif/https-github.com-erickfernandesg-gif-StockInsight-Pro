@@ -166,18 +166,20 @@ export default function WatchlistPage() {
 
   return (
     <div className="flex min-h-screen bg-background-dark">
-      <Sidebar />
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
       
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <Header />
         
-        <div className="p-8 max-w-7xl mx-auto w-full space-y-8">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6 md:space-y-8">
           <div className="flex items-end justify-between">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              <h2 className="text-3xl font-black text-white tracking-tight">Your <span className="text-primary">Watchlist</span></h2>
+              <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Your <span className="text-primary">Watchlist</span></h2>
               <p className="text-slate-500 mt-1 font-medium">Real-time performance and AI sentiment analysis for your favorite assets.</p>
             </motion.div>
             
@@ -197,7 +199,7 @@ export default function WatchlistPage() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               onSubmit={handleAddAsset}
-              className="bg-surface-dark p-6 rounded-2xl border border-primary/30 shadow-lg flex gap-4 items-center"
+              className="bg-surface-dark p-6 rounded-2xl border border-primary/30 shadow-lg flex flex-col md:flex-row gap-4 items-center"
             >
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -212,7 +214,7 @@ export default function WatchlistPage() {
               </div>
               <button 
                 type="submit"
-                className="bg-primary text-background-dark px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs hover:brightness-110 transition-all"
+                className="w-full md:w-auto bg-primary text-background-dark px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs hover:brightness-110 transition-all"
               >
                 Add to List
               </button>

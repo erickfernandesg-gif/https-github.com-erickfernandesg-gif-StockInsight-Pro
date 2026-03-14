@@ -134,7 +134,9 @@ export default function AnalysisPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen bg-background-dark">
-        <Sidebar />
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
         <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
           <Header />
           <div className="flex-1 flex items-center justify-center text-white">
@@ -150,7 +152,9 @@ export default function AnalysisPage() {
   if (error || !data) {
     return (
       <div className="flex min-h-screen bg-background-dark">
-        <Sidebar />
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
         <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
           <Header />
           <div className="flex-1 flex items-center justify-center text-red-400">
@@ -168,13 +172,15 @@ export default function AnalysisPage() {
   // 3. TELA PRINCIPAL DE ANÁLISE (Com Sidebar e Header)
   return (
     <div className="flex min-h-screen bg-background-dark">
-      <Sidebar />
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <Header />
         
         {/* Conteúdo Centralizado da Análise */}
-        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full text-white">
-          <h1 className="text-3xl font-black tracking-tight text-white uppercase mb-2">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full text-white pb-20">
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase mb-2">
             Análise <span className="text-primary">{data.ticker}</span>
           </h1>
           <div className={`flex items-center gap-3 p-4 rounded-xl border ${styles.border} ${styles.bg} mb-8`}>
@@ -187,7 +193,7 @@ export default function AnalysisPage() {
 
           <div className="bg-surface-dark p-6 rounded-2xl border border-border-dark">
             <h3 className="text-lg font-bold text-white mb-4">Trade Setup</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
               <div className="bg-background-dark/50 p-4 rounded-lg">
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Entrada</p>
                 <p className="text-2xl font-black text-primary">${entry_price?.toFixed(2)}</p>
@@ -196,7 +202,7 @@ export default function AnalysisPage() {
                 <p className="text-xs text-red-400 font-bold uppercase tracking-widest">Stop Loss</p>
                 <p className="text-2xl font-black text-white">${stop_loss?.toFixed(2)}</p>
               </div>
-              <div className="bg-background-dark/50 p-4 rounded-lg">
+              <div className="bg-background-dark/50 p-4 rounded-lg col-span-2 md:col-span-1">
                 <p className="text-xs text-green-400 font-bold uppercase tracking-widest">Take Profit</p>
                 <p className="text-2xl font-black text-white">${take_profit?.toFixed(2)}</p>
               </div>
@@ -218,7 +224,7 @@ export default function AnalysisPage() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="bg-surface-dark border border-border-dark w-full max-w-md rounded-2xl p-6 shadow-2xl relative"
+                  className="bg-surface-dark border border-border-dark w-full max-w-md rounded-2xl p-6 shadow-2xl relative mx-4"
                 >
                   <button 
                     onClick={() => setIsModalOpen(false)}

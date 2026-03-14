@@ -1,15 +1,19 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Search, Bell, User } from 'lucide-react';
+import { Search, Bell, Menu, X, LayoutDashboard, List, Shield, LogOut, TrendingUp, BarChart3, Newspaper } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation'; // <-- 1. Import do roteador adicionado
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Header() {
   const [profile, setProfile] = useState<{ full_name: string | null; role: string | null } | null>(null);
-  const [searchQuery, setSearchQuery] = useState(''); // <-- 2. Estado para guardar o que você digita
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = createClient();
 
   useEffect(() => {
@@ -36,60 +40,156 @@ export default function Header() {
     fetchProfile();
   }, [supabase]);
 
-  // <-- 3. Função que intercepta o "Enter" e faz a mágica de buscar a ação
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       const ticker = searchQuery.trim().toUpperCase();
       router.push(`/analysis/${ticker}`);
-      setSearchQuery(''); // Opcional: limpa a barra depois de buscar
+      setSearchQuery('');
+      setIsMobileMenuOpen(false); // Fecha o menu se estiver no mobile
     }
   };
 
-  return (
-    <header className="h-16 border-b border-border-dark flex items-center justify-between px-8 bg-background-dark/50 backdrop-blur-md sticky top-0 z-20">
-      <div className="w-full max-w-xl">
-        {/* <-- 4. Trocamos a <div> em volta do input por um <form> */}
-        <form onSubmit={handleSearch} className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-primary transition-colors" />
-          <input 
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search ticker (e.g., PETR4, VALE3, IBOV)"
-            className="w-full bg-surface-dark border-none rounded-xl py-2 pl-10 pr-4 focus:ring-2 focus:ring-primary/50 text-sm text-white placeholder:text-slate-500 transition-all uppercase"
-          />
-        </form>
-      </div>
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
 
-      <div className="flex items-center gap-4">
-        <button className="p-2 text-slate-400 hover:bg-surface-dark rounded-lg relative transition-colors">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-background-dark"></span>
-        </button>
+  const navItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Watchlist', href: '/watchlist', icon: List },
+    { name: 'Analysis', href: '/analysis/petr4', icon: BarChart3 },
+    { name: 'News Feed', href: '#', icon: Newspaper },
+    ...(profile?.role === 'admin' ? [{ name: 'Admin Terminal', href: '/admin/users', icon: Shield }] : [])
+  ];
+
+  return (
+    <>
+      <header className="h-16 border-b border-border-dark flex items-center justify-between px-4 md:px-8 bg-background-dark/80 backdrop-blur-xl sticky top-0 z-40">
         
-        <div className="h-8 w-[1px] bg-border-dark mx-2"></div>
-        
-        <div className="flex items-center gap-3 cursor-pointer group">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold text-white group-hover:text-primary transition-colors">
-              {profile?.full_name || 'User'}
-            </p>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-              {profile?.role === 'admin' ? 'Administrator' : 'Verified Investor'}
-            </p>
-          </div>
-          <div className="relative w-10 h-10 rounded-full border-2 border-primary/20 overflow-hidden group-hover:border-primary/50 transition-colors">
-            <Image 
-              src={`https://picsum.photos/seed/${profile?.full_name || 'user'}/100/100`} 
-              alt="Profile" 
-              fill
-              className="object-cover"
-              referrerPolicy="no-referrer"
+        {/* Lado Esquerdo: Menu Mobile + Busca */}
+        <div className="flex items-center flex-1 gap-2 md:gap-4">
+          <button 
+            className="md:hidden p-2 text-slate-400 hover:text-white transition-colors"
+            onClick={() => setIsMobileMenuOpen(true)}
+            aria-label="Open Menu"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+
+          <form onSubmit={handleSearch} className="relative flex-1 max-w-[180px] md:max-w-xl group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-primary transition-colors" />
+            <input 
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search..."
+              className="w-full bg-surface-dark/50 border border-border-dark/50 rounded-xl py-1.5 md:py-2 pl-10 pr-4 focus:ring-2 focus:ring-primary/30 text-sm text-white placeholder:text-slate-600 transition-all uppercase placeholder:normal-case"
             />
+          </form>
+        </div>
+
+        {/* Lado Direito: Notificações + Perfil */}
+        <div className="flex items-center gap-2 md:gap-6">
+          <button className="p-2 text-slate-400 hover:bg-surface-dark rounded-lg relative transition-colors hidden xs:block">
+            <Bell className="w-5 h-5" />
+            <span className="absolute top-2 right-2.5 w-2 h-2 bg-primary rounded-full border-2 border-background-dark"></span>
+          </button>
+          
+          <div className="h-6 w-[1px] bg-border-dark mx-1 hidden sm:block"></div>
+          
+          <div className="flex items-center gap-3 pl-2">
+            <div className="text-right hidden lg:block">
+              <p className="text-sm font-bold text-white leading-none mb-1">
+                {profile?.full_name || 'Investor'}
+              </p>
+              <p className="text-[10px] text-primary font-bold uppercase tracking-widest opacity-80">
+                {profile?.role === 'admin' ? 'Admin' : 'Pro Member'}
+              </p>
+            </div>
+            <div className="relative w-9 h-9 md:w-10 md:h-10 rounded-full border-2 border-primary/20 overflow-hidden ring-offset-2 ring-offset-background-dark group-hover:border-primary/50 transition-all cursor-pointer">
+              <Image 
+                src={`https://picsum.photos/seed/${profile?.full_name || 'user'}/100/100`} 
+                alt="Profile" 
+                fill
+                className="object-cover"
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Mobile Navigation Drawer */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            {/* Overlay */}
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-background-dark/60 backdrop-blur-md"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            
+            {/* Drawer Content */}
+            <motion.div 
+              initial={{ x: '-100%' }} 
+              animate={{ x: 0 }} 
+              exit={{ x: '-100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="absolute top-0 left-0 bottom-0 w-[280px] bg-surface-dark border-r border-border-dark flex flex-col shadow-2xl"
+            >
+              <div className="p-6 border-b border-border-dark flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-background-dark shadow-lg shadow-primary/20">
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
+                  <h1 className="text-lg font-black tracking-tighter text-white">STOCK<span className="text-primary">INSIGHT</span></h1>
+                </div>
+                <button 
+                  onClick={() => setIsMobileMenuOpen(false)} 
+                  className="p-2 hover:bg-white/5 rounded-full transition-colors"
+                >
+                  <X className="text-slate-400 w-5 h-5" />
+                </button>
+              </div>
+
+              <nav className="flex-1 px-4 py-8 space-y-2">
+                {navItems.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link 
+                      key={item.name} 
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${
+                        isActive 
+                          ? 'bg-primary/10 text-primary font-bold shadow-inner' 
+                          : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      <item.icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-slate-500'}`} />
+                      <span className="text-sm uppercase tracking-widest">{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <div className="p-6 border-t border-border-dark">
+                <button 
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl text-rose-500 bg-rose-500/5 hover:bg-rose-500/10 transition-all font-bold text-xs uppercase tracking-widest border border-rose-500/20"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+                <p className="text-[10px] text-center text-slate-600 mt-6 font-mono opacity-50">PRO TERMINAL v1.0.4</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

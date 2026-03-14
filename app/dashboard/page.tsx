@@ -77,12 +77,14 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen bg-background-dark">
-      <Sidebar />
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
       
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <Header />
         
-        <div className="p-8 space-y-8 max-w-[1600px] mx-auto w-full">
+        <div className="p-4 md:p-8 space-y-6 md:space-y-8 max-w-[1600px] mx-auto w-full">
           
           {/* Market Overview */}
           <motion.div
@@ -90,7 +92,7 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-2xl font-black text-white mb-6 tracking-tight uppercase flex items-center gap-3">
+            <h2 className="text-xl md:text-2xl font-black text-white mb-6 tracking-tight uppercase flex items-center gap-3">
               Market <span className="text-primary">Overview</span>
               <div className="size-2 rounded-full bg-green-500 animate-pulse mt-1" />
             </h2>
@@ -113,7 +115,7 @@ export default function DashboardPage() {
             </div>
             
             {/* Grid Dinâmico das Réguas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
               {isLoadingTrades ? (
                  <div className="col-span-full flex items-center text-slate-500 py-8">
                    <Loader2 className="w-5 h-5 animate-spin mr-3 text-primary" />
@@ -141,7 +143,7 @@ export default function DashboardPage() {
           </motion.section>
 
           {/* Tabela de Ativos e Notícias */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
             <motion.div 
               className="xl:col-span-2 space-y-8"
               initial={{ opacity: 0, x: -20 }}

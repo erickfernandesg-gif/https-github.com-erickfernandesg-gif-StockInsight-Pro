@@ -96,7 +96,7 @@ export default function UserManagementPage() {
 
   return (
     <div className="flex min-h-screen bg-background-dark">
-      <aside className="w-64 border-r border-border-dark bg-surface-dark flex flex-col shrink-0 h-screen sticky top-0">
+      <aside className="hidden md:flex w-64 border-r border-border-dark bg-surface-dark flex-col shrink-0 h-screen sticky top-0">
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-background-dark shadow-lg shadow-primary/20">
             <Shield className="w-6 h-6" />
@@ -141,13 +141,13 @@ export default function UserManagementPage() {
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <Header />
         
-        <div className="p-8 max-w-7xl mx-auto w-full space-y-8">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6 md:space-y-8">
           <div className="flex items-end justify-between">
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <h2 className="text-3xl font-black text-white tracking-tight">User <span className="text-primary">Management</span></h2>
+              <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">User <span className="text-primary">Management</span></h2>
               <p className="text-slate-500 mt-1 font-medium">Control access and define roles for team members.</p>
             </motion.div>
             
@@ -177,8 +177,8 @@ export default function UserManagementPage() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-surface-dark rounded-2xl border border-border-dark shadow-sm overflow-hidden"
           >
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
+              <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
                   <tr className="border-b border-border-dark bg-background-dark/30">
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Name</th>
