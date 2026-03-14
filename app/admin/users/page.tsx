@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion'; // Ajustado de 'motion/react' para 'framer-motion' que é o padrão
 import { 
   UserPlus, 
   Search, 
@@ -35,27 +35,25 @@ export default function UserManagementPage() {
   const supabase = createClient();
   const router = useRouter();
 
-  useEffect(() => {
-    let mounted = true;
-    const fetchProfiles = async () => {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('full_name', { ascending: true });
+  // CORREÇÃO: Função fetchProfiles movida para fora do useEffect e envolvida em useCallback
+  const fetchProfiles = useCallback(async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('full_name', { ascending: true });
 
-      if (mounted) {
-        if (error) {
-          console.error('Error fetching profiles:', error);
-        } else {
-          setProfiles(data || []);
-        }
-        setIsLoading(false);
-      }
-    };
-    fetchProfiles();
-    return () => { mounted = false; };
+    if (error) {
+      console.error('Error fetching profiles:', error);
+    } else {
+      setProfiles(data || []);
+    }
+    setIsLoading(false);
   }, [supabase]);
+
+  useEffect(() => {
+    fetchProfiles();
+  }, [fetchProfiles]);
 
   const handleUpdateRole = async (userId: string, newRole: string) => {
     const { error } = await supabase
@@ -66,6 +64,7 @@ export default function UserManagementPage() {
     if (error) {
       alert('Error updating role: ' + error.message);
     } else {
+      // Agora a função é visível aqui!
       fetchProfiles();
     }
   };
@@ -79,6 +78,7 @@ export default function UserManagementPage() {
     if (error) {
       alert('Error updating status: ' + error.message);
     } else {
+      // Agora a função é visível aqui!
       fetchProfiles();
     }
   };
@@ -96,7 +96,6 @@ export default function UserManagementPage() {
 
   return (
     <div className="flex min-h-screen bg-background-dark">
-      {/* Custom Admin Sidebar */}
       <aside className="w-64 border-r border-border-dark bg-surface-dark flex flex-col shrink-0 h-screen sticky top-0">
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-background-dark shadow-lg shadow-primary/20">
@@ -162,7 +161,6 @@ export default function UserManagementPage() {
             </motion.button>
           </div>
 
-          {/* Search Bar */}
           <div className="relative max-w-xl group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-primary transition-colors" />
             <input 
@@ -174,7 +172,6 @@ export default function UserManagementPage() {
             />
           </div>
 
-          {/* Table */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -214,7 +211,7 @@ export default function UserManagementPage() {
                         <select 
                           value={user.role}
                           onChange={(e) => handleUpdateRole(user.id, e.target.value)}
-                          className="bg-background-dark border border-border-dark rounded px-2 py-1 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                          className="bg-background-dark border border-border-dark rounded px-2 py-1 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
                         >
                           <option value="user">User</option>
                           <option value="admin">Administrator</option>
@@ -224,7 +221,7 @@ export default function UserManagementPage() {
                         <select 
                           value={user.status}
                           onChange={(e) => handleUpdateStatus(user.id, e.target.value)}
-                          className={`bg-background-dark border border-border-dark rounded px-2 py-1 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-1 ${
+                          className={`bg-background-dark border border-border-dark rounded px-2 py-1 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-1 cursor-pointer ${
                             user.status === 'active' ? 'text-primary focus:ring-primary' : 'text-rose-500 focus:ring-rose-500'
                           }`}
                         >
