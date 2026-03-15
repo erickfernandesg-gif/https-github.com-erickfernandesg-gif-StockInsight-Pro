@@ -59,14 +59,18 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Protected routes
-  const protectedPaths = ['/dashboard', '/analysis', '/admin', '/watchlist'];
+  // Protected routes (Adicionado o /portfolio)
+  const protectedPaths = ['/dashboard', '/analysis', '/admin', '/watchlist', '/portfolio'];
   const isProtectedPath = protectedPaths.some(path => 
     pathname === path || pathname.startsWith(path + '/')
   );
 
-  // Root redirect
-  if (pathname === '/') {
+  // ==========================================
+  // CORREÇÃO DA VITRINE (LANDING PAGE)
+  // ==========================================
+  // Se entrar na raiz (/) e JÁ ESTIVER LOGADO, vai direto para o Dashboard.
+  // Se NÃO ESTIVER LOGADO, o middleware ignora este if e mostra a Landing Page!
+  if (pathname === '/' && user) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
