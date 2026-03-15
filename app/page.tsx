@@ -2,12 +2,12 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion'; // Importamos o tipo Variants aqui
 import { LineChart, Brain, Target, Wallet, ArrowRight, Activity, ShieldCheck, Zap } from 'lucide-react';
 
 export default function LandingPage() {
-  // Variáveis de animação
-  const containerVariants = {
+  // Adicionamos o tipo : Variants para resolver o erro do VS Code e da Vercel
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -15,9 +15,17 @@ export default function LandingPage() {
     }
   };
 
-  const itemVariants = {
+  // Aqui também definimos como : Variants
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      transition: { 
+        duration: 0.6, 
+        ease: "easeOut" // Agora o TypeScript entende que isso é válido dentro de Variants
+      } 
+    }
   };
 
   return (
