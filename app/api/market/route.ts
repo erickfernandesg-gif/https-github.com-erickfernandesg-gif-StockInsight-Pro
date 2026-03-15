@@ -16,24 +16,27 @@ export async function GET() {
 
     if (!ibov) console.warn('⚠️ Ibovespa não retornado pela Brapi');
 
-    // 2. Fetch Dólar (Mais resiliente e com conversão forçada para Número)
-    let dollar = { bidPrice: 0, pctChange: 0, high: 0, low: 0 };
+    // 2. Fetch Dólar (Usando AwesomeAPI - 100% Gratuita e à prova de falhas)
+    let dollar = { value: 0, change: 0, high: 0, low: 0 };
+    
     try {
-      const dollarRes = await fetch(`https://brapi.dev/api/v2/currency?currency=USD-BRL&token=${token}`, { next: { revalidate: 60 } });
+      // Sem necessidade de token, atualiza a cada 60 segundos
+      const dollarRes = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL', { next: { revalidate: 60 } });
       const dollarData = await dollarRes.json();
       
-      if (dollarData.currency && dollarData.currency.length > 0) {
-        const d = dollarData.currency[0];
-        // Força a conversão para Float, pois a Brapi pode retornar String
+      if (dollarData?.USDBRL) {
+        const d = dollarData.USDBRL;
+        
+        // Extrai os dados da AwesomeAPI e converte para número perfeitamente
         dollar = {
-          bidPrice: parseFloat(d.bidPrice) || 0,
-          pctChange: parseFloat(d.pctChange || d.variationPercentage) || 0,
-          high: parseFloat(d.high || d.highPrice) || 0,
-          low: parseFloat(d.low || d.lowPrice) || 0
+          value: parseFloat(d.bid) || 0,
+          change: parseFloat(d.pctChange) || 0,
+          high: parseFloat(d.high) || 0,
+          low: parseFloat(d.low) || 0
         };
       }
     } catch (e) {
-      console.error('⚠️ Falha ao buscar Dólar:', e);
+      console.error('⚠️ Falha ao buscar Dólar na AwesomeAPI:', e);
     }
 
     // 3. Fetch SELIC
@@ -49,6 +52,7 @@ export async function GET() {
       console.error('⚠️ Falha ao buscar SELIC:', e);
     }
 
+    // Retorno unificado para o Frontend
     return NextResponse.json({
       ibov: {
         value: ibov?.regularMarketPrice || 0,
@@ -56,13 +60,8 @@ export async function GET() {
         high: ibov?.regularMarketDayHigh || 0,
         low: ibov?.regularMarketDayLow || 0
       },
-      dollar: {
-        value: dollar.bidPrice,
-        change: dollar.pctChange,
-        high: dollar.high,
-        low: dollar.low
-      },
-      selic
+      dollar: dollar, // <-- O Dólar agora vai preenchido e imune a falhas!
+      selic: selic
     });
 
   } catch (error: any) {

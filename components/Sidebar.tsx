@@ -59,7 +59,7 @@ export default function Sidebar() {
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
     { icon: Star, label: 'Watchlist', href: '/watchlist' },
     { icon: BarChart3, label: 'Analysis', href: '/analysis/petr4' },
-    { icon: Newspaper, label: 'News Feed', href: '#' },
+    { icon: Newspaper, label: 'News Feed', href: '/news' },
   ];
 
   if (role === 'admin') {

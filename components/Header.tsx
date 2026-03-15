@@ -59,7 +59,7 @@ export default function Header() {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Watchlist', href: '/watchlist', icon: List },
     { name: 'Analysis', href: '/analysis/petr4', icon: BarChart3 },
-    { name: 'News Feed', href: '#', icon: Newspaper },
+    { name: 'News Feed', href: '/news', icon: Newspaper },
     ...(profile?.role === 'admin' ? [{ name: 'Admin Terminal', href: '/admin/users', icon: Shield }] : [])
   ];
 
