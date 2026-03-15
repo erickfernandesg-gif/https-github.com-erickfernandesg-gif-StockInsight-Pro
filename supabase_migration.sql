@@ -77,3 +77,23 @@ ADD COLUMN IF NOT EXISTS entry_price DECIMAL,
 ADD COLUMN IF NOT EXISTS stop_loss DECIMAL,
 ADD COLUMN IF NOT EXISTS target_price DECIMAL,
 ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'watching'; 
+
+create table public.user_portfolio (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  ticker text not null,
+  quantity numeric not null check (quantity > 0),
+  average_price numeric not null check (average_price > 0),
+  purchase_date timestamp with time zone default now(),
+  created_at timestamp with time zone default now()
+);
+
+-- Habilitar RLS (Segurança)
+alter table public.user_portfolio enable row level security;
+
+create policy "Users can manage their own portfolio"
+  on public.user_portfolio for all
+  using (auth.uid() = user_id);
+
+
+  commit;

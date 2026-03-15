@@ -3,18 +3,16 @@
 import React, { useEffect, useState } from 'react';
 import { 
   LayoutDashboard, 
-  PieChart, 
   BarChart3, 
   Newspaper, 
   Wallet, 
-  Settings, 
   TrendingUp,
   ChevronRight,
   Star,
   Shield,
   LogOut
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion'; // Ajustado para o padrão comum de importação
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -39,7 +37,6 @@ export default function Sidebar() {
           if (!error && data) {
             setRole(data.role || 'user');
           } else {
-            // Fallback if profile doesn't exist yet
             setRole('user');
           }
         }
@@ -55,9 +52,11 @@ export default function Sidebar() {
     router.push('/login');
   };
 
+  // Itens de Navegação atualizados com a Carteira (Portfolio)
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
     { icon: Star, label: 'Watchlist', href: '/watchlist' },
+    { icon: Wallet, label: 'Carteira', href: '/portfolio' }, // NOVO ÍCONE ADICIONADO AQUI
     { icon: BarChart3, label: 'Analysis', href: '/analysis/petr4' },
     { icon: Newspaper, label: 'News Feed', href: '/news' },
   ];
