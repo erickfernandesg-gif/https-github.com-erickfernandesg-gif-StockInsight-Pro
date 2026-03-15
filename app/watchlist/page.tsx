@@ -4,7 +4,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Loader2, Search, Target, ShieldAlert, LineChart, Filter, Pencil, X } from 'lucide-react';
+// NOVO: Adicionados Wallet e CheckCircle aos imports do lucide-react
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Loader2, Search, Target, ShieldAlert, LineChart, Filter, Pencil, X, Wallet, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
@@ -36,6 +37,14 @@ export default function WatchlistPage() {
   const [editingTrade, setEditingTrade] = useState<Favorite | null>(null);
   const [editForm, setEditForm] = useState({ entry_price: '', stop_loss: '', target_price: '' });
   
+  // ==========================================
+  // NOVO: ESTADOS PARA TRANSFERÊNCIA P/ CARTEIRA
+  // ==========================================
+  const [transferringTrade, setTransferringTrade] = useState<Favorite | null>(null);
+  const [transferForm, setTransferForm] = useState({ quantity: '', price: '' });
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+
   const [marketState, setMarketState] = useState({ text: 'A CALCULAR...', badge: '...', color: 'text-slate-400', badgeColor: 'bg-slate-800 text-slate-400' });
   const [sentimentState, setSentimentState] = useState({ text: 'A analisar', percent: 50, color: 'bg-slate-500', textColor: 'text-white' });
 
@@ -171,14 +180,10 @@ export default function WatchlistPage() {
     }
   };
 
-  // ==========================================
-  // FUNÇÃO DE SALVAR CORRIGIDA E BLINDADA
-  // ==========================================
   const handleSaveTradeSetup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTrade) return;
 
-    // Converte vírgula para ponto e transforma em número de forma segura
     const entry = parseFloat(String(editForm.entry_price).replace(',', '.'));
     const stop = parseFloat(String(editForm.stop_loss).replace(',', '.'));
     const target = parseFloat(String(editForm.target_price).replace(',', '.'));
@@ -189,20 +194,61 @@ export default function WatchlistPage() {
         entry_price: isNaN(entry) ? null : entry,
         stop_loss: isNaN(stop) ? null : stop,
         target_price: isNaN(target) ? null : target,
-        status: 'active' // <--- MÁGICA: Agora ao editar, ele vai direto pro seu Dashboard!
+        status: 'active'
       })
       .eq('id', editingTrade.id)
-      .select(); // <--- MÁGICA 2: O ".select()" obriga a API a devolver a linha editada. 
+      .select();
 
     if (error) {
       alert('Erro ao guardar setup: ' + error.message);
     } else if (!data || data.length === 0) {
-      // Se não der erro mas a data vier vazia, significa bloqueio de Segurança (RLS).
       alert('BLOQUEIO DE SEGURANÇA: Não tem permissão de UPDATE na tabela "user_favorites". Por favor, execute o script SQL de liberação.');
     } else {
       setEditingTrade(null);
       fetchFavorites(true);
     }
+  };
+
+  // ==========================================
+  // NOVO: LÓGICA DE TRANSFERÊNCIA PARA CARTEIRA
+  // ==========================================
+  const openTransferModal = (fav: Favorite) => {
+    const currentPrice = assetsData[fav.ticker]?.price;
+    setTransferringTrade(fav);
+    setTransferForm({
+      quantity: '100', // Sugestão padrão de lote
+      price: currentPrice ? currentPrice.toFixed(2) : (fav.entry_price?.toString() || '') // Puxa preço atual automaticamente
+    });
+  };
+
+  const handleExecuteTrade = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferringTrade) return;
+    setIsTransferring(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const quantityNum = parseFloat(transferForm.quantity);
+    const priceNum = parseFloat(transferForm.price.replace(',', '.'));
+
+    // Inserir na tabela da Carteira Real (user_portfolio)
+    const { error } = await supabase.from('user_portfolio').insert({
+      user_id: user.id,
+      ticker: transferringTrade.ticker,
+      quantity: quantityNum,
+      average_price: priceNum
+    });
+
+    if (error) {
+      alert("Erro ao executar ordem: " + error.message);
+    } else {
+      // Sucesso! Limpa o modal e mostra o aviso.
+      setTransferringTrade(null);
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000); // Esconde o aviso após 3 segundos
+    }
+    setIsTransferring(false);
   };
 
   const openEditModal = (fav: Favorite) => {
@@ -262,6 +308,20 @@ export default function WatchlistPage() {
       
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto relative">
         <Header />
+
+        {/* NOVO: Notificação Toast Global de Sucesso */}
+        <AnimatePresence>
+          {showSuccessToast && (
+            <motion.div 
+              initial={{ opacity: 0, y: -50 }} 
+              animate={{ opacity: 1, y: 20 }} 
+              exit={{ opacity: 0, y: -50 }}
+              className="fixed top-0 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-background-dark px-6 py-3 rounded-full font-black text-sm flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+            >
+              <CheckCircle className="w-5 h-5" /> Ativo transferido para a sua Carteira Real!
+            </motion.div>
+          )}
+        </AnimatePresence>
         
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6 md:space-y-8 pb-20">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -449,6 +509,16 @@ export default function WatchlistPage() {
                         <div className="flex items-center justify-between pt-4 border-t border-border-dark/50 mt-auto">
                            <span className="text-[10px] text-slate-600 font-medium">Add: {new Date(fav.added_at).toLocaleDateString('pt-PT')}</span>
                           <div className="flex items-center gap-1">
+                            
+                            {/* NOVO: Botão Transferir para a Carteira */}
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); openTransferModal(fav); }}
+                              className="text-slate-500 hover:text-emerald-400 transition-colors p-2 rounded-lg hover:bg-emerald-500/10"
+                              title="Transferir para a Carteira Real"
+                            >
+                              <Wallet className="w-4 h-4" />
+                            </button>
+
                             <button 
                               onClick={(e) => { e.stopPropagation(); openEditModal(fav); }}
                               className="text-slate-500 hover:text-blue-400 transition-colors p-2 rounded-lg hover:bg-blue-500/10"
@@ -468,7 +538,7 @@ export default function WatchlistPage() {
                             <button 
                               onClick={(e) => { e.stopPropagation(); handleRemoveAsset(fav.id); }}
                               className="text-slate-500 hover:text-rose-400 transition-colors p-2 rounded-lg hover:bg-rose-500/10"
-                              title="Remover"
+                              title="Remover do Radar"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -481,6 +551,7 @@ export default function WatchlistPage() {
           </motion.div>
         </div>
 
+        {/* Modal: Editar Setup */}
         <AnimatePresence>
           {editingTrade && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background-dark/80 backdrop-blur-sm">
@@ -557,6 +628,69 @@ export default function WatchlistPage() {
             </div>
           )}
         </AnimatePresence>
+
+        {/* NOVO Modal: Transferir para a Carteira */}
+        <AnimatePresence>
+          {transferringTrade && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background-dark/80 backdrop-blur-sm">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-surface-dark border border-emerald-500/30 rounded-2xl p-6 w-full max-w-sm shadow-2xl shadow-emerald-500/10"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-black text-white flex items-center gap-2">
+                      <Wallet className="w-5 h-5 text-emerald-500" />
+                      Comprar <span className="text-emerald-500">{transferringTrade.ticker}</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Transferir para o Cofre</p>
+                  </div>
+                  <button onClick={() => setTransferringTrade(null)} className="p-2 text-slate-500 hover:bg-white/5 rounded-lg transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleExecuteTrade} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Qtd de Ações</label>
+                      <input 
+                        type="number" step="1" required
+                        value={transferForm.quantity}
+                        onChange={(e) => setTransferForm({...transferForm, quantity: e.target.value})}
+                        className="w-full bg-background-dark border border-border-dark rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-emerald-500/50 text-sm font-mono text-white transition-all"
+                        placeholder="Ex: 100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-2">Preço Pago (R$)</label>
+                      <input 
+                        type="number" step="0.01" required
+                        value={transferForm.price}
+                        onChange={(e) => setTransferForm({...transferForm, price: e.target.value})}
+                        className="w-full bg-emerald-500/5 border border-emerald-500/20 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-emerald-500/50 text-sm font-mono text-white transition-all"
+                        placeholder="Ex: 38.50"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="pt-4 mt-2 border-t border-border-dark flex gap-3">
+                    <button type="button" onClick={() => setTransferringTrade(null)} disabled={isTransferring} className="flex-1 py-3 rounded-xl text-xs font-bold text-slate-400 hover:bg-white/5 transition-colors uppercase tracking-widest">
+                      Cancelar
+                    </button>
+                    <button type="submit" disabled={isTransferring} className="flex-1 bg-emerald-500 text-background-dark py-3 rounded-xl text-xs font-black hover:brightness-110 transition-all uppercase tracking-widest flex items-center justify-center gap-2">
+                      {isTransferring ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                      Executar
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
       </main>
     </div>
   );
