@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     if (!ticker) return NextResponse.json({ error: 'Ticker required' }, { status: 400 });
     if (!brapiToken) return NextResponse.json({ error: 'Server config error' }, { status: 500 });
 
-    // 1. Fetch Historical Data (3 meses para não bloquear na Brapi Gratuita)
+    // 1. Fetch Historical Data (3 meses)
     const formattedTicker = ticker.trim().toUpperCase();
     const cleanToken = brapiToken.trim();
     
@@ -44,23 +44,24 @@ export async function POST(req: Request) {
       throw new Error('No historical data found for this ticker');
     }
 
-    // Mapeamento completo OHLCV (Open, High, Low, Close, Volume) para o ATR
+    // Mapeamento OHLCV
     const ohlcData = historicalData.map((d: any) => ({
-      date: d.date, open: d.open, high: d.high, low: d.low, close: d.close, volume: d.volume
+      date: new Date(d.date * 1000).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Converte Timestamp para Data Legível
+      open: d.open, high: d.high, low: d.low, close: d.close, volume: d.volume
     }));
     const closes = ohlcData.map((d: any) => d.close);
     const volumes = ohlcData.map((d: any) => d.volume);
     
-    // 2. Cálculos Institucionais (Matemática Avançada)
+    // 2. Cálculos Institucionais
     const lastIdx = closes.length - 1;
     const ema9 = calculateEMA(closes, 9);
     const ema21 = calculateEMA(closes, 21);
-    const sma50 = calculateSMA(closes, 50); // Filtro de Tendência
+    const sma50 = calculateSMA(closes, 50);
     const rsi = calculateRSI(closes, 14);
     const macdData = calculateMACD(closes);
     const bbData = calculateBollingerBands(closes);
-    const atrData = calculateATR(ohlcData, 14); // Volatilidade para Stop Loss
-    const volSma20 = calculateSMA(volumes, 20); // Média de volume para evitar armadilhas
+    const atrData = calculateATR(ohlcData, 14);
+    const volSma20 = calculateSMA(volumes, 20);
 
     const indicators = {
       currentPrice: closes[lastIdx],
@@ -73,12 +74,24 @@ export async function POST(req: Request) {
       bbLower: bbData.lower[lastIdx] || null,
       atr: atrData[lastIdx] || 0,
       volToday: volumes[lastIdx] || 0,
-      volAvg: volSma20[lastIdx] || 1 // Previne divisão por zero
+      volAvg: volSma20[lastIdx] || 1 
     };
 
     const volRatio = (indicators.volToday / indicators.volAvg).toFixed(2);
 
-    // 3. Prompt Cérebro (Dados enviados para o Gemini)
+    // 3. Preparação do Gráfico (Chart Data) para o Frontend
+    // Vamos enviar os últimos 60 dias úteis
+    const chartData = ohlcData.slice(-60).map((day: any, index: number) => {
+      // Pega o índice real baseado no array original cortado
+      const realIndex = (ohlcData.length - 60) + index;
+      return {
+        date: day.date,
+        price: day.close,
+        sma50: sma50[realIndex] ? Number(sma50[realIndex].toFixed(2)) : null
+      };
+    });
+
+    // 4. Prompt Cérebro
     const prompt = `Analise o ativo ${formattedTicker} para Swing Trade.
     Dados Técnicos de Hoje:
     - Preço Atual: R$ ${indicators.currentPrice?.toFixed(2)}
@@ -133,8 +146,10 @@ export async function POST(req: Request) {
     const cleanJson = responseText.substring(startIndex, endIndex + 1);
     const analysis = JSON.parse(cleanJson);
 
+    // NOVO: Retornando também o chartData
     return NextResponse.json({
       ticker: formattedTicker,
+      chartData: chartData,
       indicators: {
         rsi: indicators.rsi,
         sma50: indicators.sma50,
