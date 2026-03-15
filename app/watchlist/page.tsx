@@ -36,13 +36,12 @@ export default function WatchlistPage() {
   const [editingTrade, setEditingTrade] = useState<Favorite | null>(null);
   const [editForm, setEditForm] = useState({ entry_price: '', stop_loss: '', target_price: '' });
   
-  // NOVO: Estados Dinâmicos para os Cartões de Métricas
   const [marketState, setMarketState] = useState({ text: 'A CALCULAR...', badge: '...', color: 'text-slate-400', badgeColor: 'bg-slate-800 text-slate-400' });
   const [sentimentState, setSentimentState] = useState({ text: 'A analisar', percent: 50, color: 'bg-slate-500', textColor: 'text-white' });
 
   const supabase = createClient();
 
-  // Relógio Dinâmico da B3 (Atualiza a cada minuto)
+  // Relógio Dinâmico da B3
   useEffect(() => {
     const checkMarketStatus = () => {
       const now = new Date();
@@ -66,7 +65,7 @@ export default function WatchlistPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Calculadora de Sentimento da Carteira
+  // Calculadora de Sentimento
   useEffect(() => {
     const tickers = Object.keys(assetsData);
     if (tickers.length === 0) {
@@ -80,7 +79,7 @@ export default function WatchlistPage() {
     });
     const avgChange = totalChange / tickers.length;
 
-    let percent = 50 + (avgChange * 20); // Escala para preencher a barra de forma visível
+    let percent = 50 + (avgChange * 20);
     percent = Math.max(0, Math.min(100, percent));
 
     if (avgChange > 0.5) {
@@ -164,11 +163,7 @@ export default function WatchlistPage() {
   };
 
   const handleRemoveAsset = async (id: string) => {
-    const { error } = await supabase
-      .from('user_favorites')
-      .delete()
-      .eq('id', id);
-
+    const { error } = await supabase.from('user_favorites').delete().eq('id', id);
     if (error) {
       alert('Erro ao remover ativo: ' + error.message);
     } else {
@@ -176,25 +171,34 @@ export default function WatchlistPage() {
     }
   };
 
+  // ==========================================
+  // FUNÇÃO DE SALVAR CORRIGIDA E BLINDADA
+  // ==========================================
   const handleSaveTradeSetup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTrade) return;
 
-    const entry = parseFloat(editForm.entry_price.replace(',', '.'));
-    const stop = parseFloat(editForm.stop_loss.replace(',', '.'));
-    const target = parseFloat(editForm.target_price.replace(',', '.'));
+    // Converte vírgula para ponto e transforma em número de forma segura
+    const entry = parseFloat(String(editForm.entry_price).replace(',', '.'));
+    const stop = parseFloat(String(editForm.stop_loss).replace(',', '.'));
+    const target = parseFloat(String(editForm.target_price).replace(',', '.'));
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('user_favorites')
       .update({
         entry_price: isNaN(entry) ? null : entry,
         stop_loss: isNaN(stop) ? null : stop,
         target_price: isNaN(target) ? null : target,
+        status: 'active' // <--- MÁGICA: Agora ao editar, ele vai direto pro seu Dashboard!
       })
-      .eq('id', editingTrade.id);
+      .eq('id', editingTrade.id)
+      .select(); // <--- MÁGICA 2: O ".select()" obriga a API a devolver a linha editada. 
 
     if (error) {
       alert('Erro ao guardar setup: ' + error.message);
+    } else if (!data || data.length === 0) {
+      // Se não der erro mas a data vier vazia, significa bloqueio de Segurança (RLS).
+      alert('BLOQUEIO DE SEGURANÇA: Não tem permissão de UPDATE na tabela "user_favorites". Por favor, execute o script SQL de liberação.');
     } else {
       setEditingTrade(null);
       fetchFavorites(true);
@@ -390,15 +394,15 @@ export default function WatchlistPage() {
                           </div>
                           
                           <div className="text-right">
-                             <p className="text-lg font-mono font-bold text-white">
-                               {data ? `R$ ${data.price.toFixed(2)}` : '---'}
-                             </p>
-                             {data && (
-                                <div className={`flex items-center justify-end gap-1 text-xs font-bold ${data.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                    {data.change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                                    {data.change.toFixed(2)}%
-                                </div>
-                             )}
+                              <p className="text-lg font-mono font-bold text-white">
+                                {data ? `R$ ${data.price.toFixed(2)}` : '---'}
+                              </p>
+                              {data && (
+                                 <div className={`flex items-center justify-end gap-1 text-xs font-bold ${data.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                     {data.change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                     {data.change.toFixed(2)}%
+                                 </div>
+                               )}
                           </div>
                         </div>
 

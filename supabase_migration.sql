@@ -95,5 +95,13 @@ create policy "Users can manage their own portfolio"
   on public.user_portfolio for all
   using (auth.uid() = user_id);
 
+-- Remove políticas antigas caso existam
+drop policy if exists "Users can manage their favorites" on public.user_favorites;
+drop policy if exists "Enable ALL for users based on user_id" on public.user_favorites;
 
+-- Cria uma política global liberando INSERT, SELECT, UPDATE E DELETE
+create policy "Enable ALL for users based on user_id" 
+on public.user_favorites 
+for all 
+using (auth.uid() = user_id);
   commit;
