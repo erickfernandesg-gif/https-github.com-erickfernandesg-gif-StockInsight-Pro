@@ -8,6 +8,8 @@ import AssetTable from '@/components/AssetTable';
 import NewsSection from '@/components/NewsSection';
 import SentimentAnalysis from '@/components/SentimentAnalysis';
 import TradeRulerCard from '@/components/TradeRulerCard';
+// NOVO: Importação do Radar de Oportunidades
+import OpportunityRadar from '@/components/OpportunityRadar';
 import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, Briefcase, Wallet, Crosshair, Activity } from 'lucide-react';
@@ -243,7 +245,7 @@ export default function DashboardPage() {
               <NewsSection />
             </motion.div>
 
-            {/* Coluna Lateral Original: Sentimento e Status Widget */}
+            {/* Coluna Lateral Original: Sentimento, Status Widget E OPORTUNIDADES */}
             <motion.div 
               className="space-y-8"
               initial={{ opacity: 0, x: 20 }}
@@ -302,6 +304,9 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
+
+              {/* NOVO: RADAR DE OPORTUNIDADES */}
+              <OpportunityRadar />
 
             </motion.div>
           </div>
