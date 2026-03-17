@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Search, Bell, Menu, X, LayoutDashboard, List, Shield, LogOut, TrendingUp, BarChart3, Newspaper } from 'lucide-react';
+import { Search, Bell, Menu, X, LayoutDashboard, List, Shield, LogOut, TrendingUp, BarChart3, Newspaper, Wallet } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, usePathname } from 'next/navigation';
@@ -58,6 +58,7 @@ export default function Header() {
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Watchlist', href: '/watchlist', icon: List },
+    { name: 'Carteira', href: '/portfolio', icon: Wallet },
     { name: 'Analysis', href: '/analysis/petr4', icon: BarChart3 },
     { name: 'News Feed', href: '/news', icon: Newspaper },
     ...(profile?.role === 'admin' ? [{ name: 'Admin Terminal', href: '/admin/users', icon: Shield }] : [])
