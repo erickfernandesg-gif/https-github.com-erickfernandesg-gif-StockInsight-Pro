@@ -17,8 +17,11 @@ export default function DashboardPage() {
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [isLoadingTrades, setIsLoadingTrades] = useState(true);
   
-  // Estado para guardar o status real do mercado (Ibovespa)
-  const [marketStatus, setMarketStatus] = useState<any>(null);
+  // ATUALIZADO: Estado para o nome do utilizador
+  const [userName, setUserName] = useState('Investidor');
+
+  // ATUALIZADO: Agora guarda todo o objeto de mercado (Ibov e USD)
+  const [marketData, setMarketData] = useState<any>(null);
 
   // NOVOS ESTADOS: Métricas da Carteira
   const [equity, setEquity] = useState(0);
@@ -34,12 +37,20 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    // Rotina 1: Busca os Trades Ativos e Dados da Carteira Simultaneamente
+    // Rotina 1: Busca os Trades Ativos, Dados da Carteira e Perfil do Utilizador
     const fetchDashboardData = async () => {
       setIsLoadingTrades(true);
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Buscar Nome do Utilizador
+      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+      if (profile?.full_name) {
+        setUserName(profile.full_name.split(' ')[0]); // Pega apenas o primeiro nome
+      } else if (user.user_metadata?.full_name) {
+        setUserName(user.user_metadata.full_name.split(' ')[0]);
+      }
 
       // Buscar Favoritos (Sinais/Monitorização)
       const { data: favorites } = await supabase.from('user_favorites').select('*').eq('user_id', user.id).eq('status', 'active');
@@ -103,13 +114,13 @@ export default function DashboardPage() {
       setIsLoadingTrades(false);
     };
 
-    // Rotina 2: Busca o Status Real do Mercado
+    // Rotina 2: Busca o Status Real do Mercado (Agora pega Ibov e USD)
     const fetchMarketStatus = async () => {
       try {
         const res = await fetch('/api/market');
         const data = await res.json();
-        if (data && data.ibov) {
-          setMarketStatus(data.ibov);
+        if (data) {
+          setMarketData(data);
         }
       } catch (err) {
         console.error("Erro ao buscar status do mercado:", err);
@@ -131,9 +142,9 @@ export default function DashboardPage() {
         
         <div className="p-4 md:p-8 space-y-6 md:space-y-8 max-w-[1600px] mx-auto w-full pb-20">
           
-          {/* Saudação Personalizada */}
+          {/* Saudação Personalizada ATUALIZADA */}
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <h2 className="text-3xl font-black text-white">Bem-vindo, <span className="text-primary">Erick</span>!</h2>
+            <h2 className="text-3xl font-black text-white">Bem-vindo, <span className="text-primary">{userName}</span>!</h2>
             <p className="text-slate-500 font-medium mt-1">Aqui está o resumo do seu terminal e carteira hoje.</p>
           </motion.div>
 
@@ -241,27 +252,53 @@ export default function DashboardPage() {
             >
               <SentimentAnalysis />
               
-              {/* DINÂMICO: Market Status Widget */}
+              {/* DINÂMICO E ATUALIZADO: Market Status Widget */}
               <div className="bg-surface-dark p-6 rounded-2xl border border-border-dark shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={`size-2 rounded-full animate-pulse ${marketStatus ? 'bg-primary' : 'bg-slate-600'}`} />
-                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Segmento B3</span>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className={`size-2 rounded-full animate-pulse ${marketData ? 'bg-primary' : 'bg-slate-600'}`} />
+                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Visão Global</span>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-tighter">Índice Ibovespa</p>
-                  <div className="flex items-baseline gap-2">
-                    {marketStatus ? (
-                      <>
-                        <span className="text-xl font-black text-white">
-                          {marketStatus.value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </span>
-                        <span className={`text-xs font-bold ${marketStatus.change >= 0 ? 'text-primary' : 'text-rose-500'}`}>
-                          {marketStatus.change >= 0 ? '+' : ''}{marketStatus.change.toFixed(2)}%
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-sm font-bold text-slate-500 animate-pulse">Calculando...</span>
-                    )}
+                
+                <div className="space-y-6">
+                  {/* Ibovespa */}
+                  <div>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-tighter mb-1">Índice Ibovespa</p>
+                    <div className="flex items-baseline gap-2">
+                      {marketData?.ibov ? (
+                        <>
+                          <span className="text-2xl font-black text-white">
+                            {marketData.ibov.value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          </span>
+                          <span className={`text-sm font-bold ${marketData.ibov.change >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+                            {marketData.ibov.change >= 0 ? '+' : ''}{marketData.ibov.change.toFixed(2)}%
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-sm font-bold text-slate-500 animate-pulse">Calculando...</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Linha Divisória */}
+                  <div className="w-full h-[1px] bg-border-dark/50" />
+
+                  {/* Dólar */}
+                  <div>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-tighter mb-1">Dólar (USD/BRL)</p>
+                    <div className="flex items-baseline gap-2">
+                      {marketData?.usd ? (
+                        <>
+                          <span className="text-2xl font-black text-white">
+                            R$ {marketData.usd.value.toFixed(4)}
+                          </span>
+                          <span className={`text-sm font-bold ${marketData.usd.change >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>
+                            {marketData.usd.change >= 0 ? '+' : ''}{marketData.usd.change.toFixed(2)}%
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-sm font-bold text-slate-500 animate-pulse">Calculando...</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
