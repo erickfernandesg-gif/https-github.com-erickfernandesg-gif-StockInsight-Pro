@@ -14,6 +14,8 @@ import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, Briefcase, Wallet, Crosshair, Activity } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default function DashboardPage() {
   const [activeTrades, setActiveTrades] = useState<any[]>([]);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});

@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Garante que a rota seja sempre processada no servidor (evita erro de prerender)
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const token = process.env.BRAPI_TOKEN;
   
