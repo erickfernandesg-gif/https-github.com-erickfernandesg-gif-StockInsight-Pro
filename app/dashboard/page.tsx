@@ -302,6 +302,24 @@ export default function DashboardPage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Linha Divisória */}
+                  <div className="w-full h-[1px] bg-border-dark/50" />
+
+                  {/* Taxa SELIC */}
+                  <div>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-tighter mb-1">Taxa SELIC</p>
+                    <div className="flex items-baseline gap-2">
+                      {marketData?.selic ? (
+                        <>
+                          <span className="text-2xl font-black text-white">{marketData.selic.value.toFixed(2)}%</span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">Meta Anual</span>
+                        </>
+                      ) : (
+                        <span className="text-sm font-bold text-slate-500 animate-pulse">Sincronizando...</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 

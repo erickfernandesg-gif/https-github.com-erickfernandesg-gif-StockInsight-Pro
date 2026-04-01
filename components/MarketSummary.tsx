@@ -90,11 +90,11 @@ export default function MarketSummary() {
       />
       <MarketCard 
         label="Dólar Comercial"
-        value={data?.dollar ? `R$ ${data.dollar.value.toFixed(4)}` : '---'}
-        change={data?.dollar ? `${data.dollar.change >= 0 ? '+' : ''}${data.dollar.change.toFixed(2)}%` : '---'}
-        isPositive={data?.dollar ? data.dollar.change >= 0 : false}
+        value={data?.usd ? `R$ ${data.usd.value.toFixed(4)}` : '---'}
+        change={data?.usd ? `${data.usd.change >= 0 ? '+' : ''}${data.usd.change.toFixed(2)}%` : '---'}
+        isPositive={data?.usd ? data.usd.change >= 0 : false}
         progress={45}
-        subtext={data?.dollar ? `Day Low: ${data.dollar.low.toFixed(4)}` : '---'}
+        subtext={data?.usd ? `Day Low: ${data.usd.low.toFixed(4)}` : '---'}
         isLoading={isLoading}
       />
       <MarketCard 
